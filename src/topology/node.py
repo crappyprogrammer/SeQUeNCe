@@ -224,6 +224,31 @@ class QuantumRouter(Node):
         self.network_manager = NewNetworkManager(self)
         self.map_to_middle_node = {}
         self.app = None
+        #-------------------------------------
+        self.all_pair_shortest_dist = None
+        self.neighbors = None
+        #-------------------------------------
+
+    #--------------------------------------------------------------------------
+    def find_virtual_neighbors(self):
+        virtual_neighbors = {}
+
+        #Check the memory of this node for existing entanglements
+        for info in self.resource_manager.memory_manager:
+            
+            if info.remote_node == None:
+                continue
+            else:
+                #print((node, info.remote_node))
+                #This is a virtual neighbor
+                #nx_graph.add_edge(node, str(info.remote_node), color='r')
+                if str(info.remote_node) in virtual_neighbors.keys():
+                    virtual_neighbors[str(info.remote_node)] = virtual_neighbors[str(info.remote_node)] + 1
+                else:
+                    virtual_neighbors[str(info.remote_node)] = 1
+
+        return virtual_neighbors
+    #--------------------------------------------------------------------------
 
     def receive_message(self, src: str, msg: "Message") -> None:
         if msg.receiver == "resource_manager":
@@ -519,3 +544,4 @@ class QKDNode(Node):
 
     def receive_qubit(self, src: str, qubit) -> None:
         self.qsdetector.get(qubit)
+

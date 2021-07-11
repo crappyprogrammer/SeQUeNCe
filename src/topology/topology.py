@@ -14,6 +14,10 @@ if TYPE_CHECKING:
 from .node import *
 from ..components.optical_channel import QuantumChannel, ClassicalChannel
 
+#----------------------------
+import networkx as nx
+import matplotlib.pyplot as plt
+#----------------------------
 
 class Topology():
     """Class for managing network topologies.
@@ -124,7 +128,14 @@ class Topology():
                 self.add_quantum_channel(node1, node2, **qchannel_params)
 
         # generate forwarding tables
+        #-------------------------------
+        all_pair_dist, G = self.all_pair_shortest_dist()
+        #-------------------------------
         for node in self.get_nodes_by_type("QuantumRouter"):
+            #-----------------------------------------------
+            node.all_pair_shortest_dist = all_pair_dist
+            node.neighbors = list(G.neighbors(node.name))
+            #-----------------------------------------------
             table = self.generate_forwarding_table(node.name)
             for dst, next_node in table.items():
                 node.network_manager.protocol_stack[0].add_forwarding_rule(dst, next_node)
@@ -288,4 +299,62 @@ class Topology():
         # TODO: add higher-level protocols not added by nodes
         raise NotImplementedError("populate_protocols has not been added")
 
+    #-----------------------------------------------
+    def generate_nx_graph(self):
+        G = nx.Graph()
+        for node in self.nodes.keys():
 
+            if type(self.nodes[node]) == BSMNode:
+                continue
+
+            for neighbor in self.graph_no_middle[node]:    
+                distance = self.graph_no_middle[node][neighbor]
+                #print('------------node-------------', type(node))
+                #print('------------neighbor-------------', type(neighbor))
+                #print('------------distance-------------', type(distance))
+                G.add_node(node)                
+                G.add_edge(node, neighbor, color='b', weight=distance)      
+        return G
+
+    def all_pair_shortest_dist(self):
+        G = self.generate_nx_graph()
+        return nx.floyd_warshall(G), G
+
+    def get_virtual_graph(self):
+        #Plotting virtual graph
+        nx_graph = self.generate_nx_graph()
+        for node in self.nodes.keys():
+            
+            #Check if this is middle node then skip it
+            if type(self.nodes[node]) == BSMNode:
+                #print("In if-------",node)
+                continue
+            
+            #Check the memory of this node for existing entanglements
+            for info in self.nodes[node].resource_manager.memory_manager:
+                
+                if info.remote_node == None:
+                    #print("Info.remote node-------------", info.remote_node)
+                    continue
+                else:
+                    #print((node, info.remote_node))
+                    #This is a virtual neighbor
+                    #print("Node, remote node-------",(node, info.remote_node))
+                    nx_graph.add_edge(node, str(info.remote_node), color='r')
+        return nx_graph
+
+    def plot_graph(self, nx_graph):
+        colors = nx.get_edge_attributes(nx_graph,'color').values()
+        #print("Colors",colors)
+        weights = nx.get_edge_attributes(nx_graph,'weight').values()
+
+        nx.draw(nx_graph, edge_color=colors, with_labels = True)
+        
+        #nx.draw(nx_graph,with_labels=True)
+        plt.show()
+
+    #------------------------------------------------
+        """ colors = nx.get_edge_attributes(nx_graph,'color').values()
+        weights = nx.get_edge_attributes(nx_graph,'weight').values()
+
+        nx.draw(nx_graph, edge_color=colors, with_labels = True)"""
